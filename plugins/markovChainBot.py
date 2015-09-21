@@ -1,7 +1,7 @@
 import os
 import pickle
 from cobe import brain
-from time import time
+from time import time, sleep
 
 
 crontable = []
@@ -106,7 +106,7 @@ def unknownChannel(data):
 def notifyGroup(channelId, channelName, reason):
     salutation = {'join': 'thanks for inviting me into your channel!',
                   'remind': 'this is a monthly reminder that I\'m here (in case of security concerns)!'}
-    joinMessage = "Hello {}, {} I try to \"learn\" English sentence structure through Markov chains. If you don't want me eavesdropping, please kick me (you might need admin help for this). Otherwise, invite me to all your parties so I can learn faster (/invite @markovbot)! DM me to see what I have to say -- I'll start out pretty (really) stupid and get \"smarter\" with time. Caveat lector -- when trained on live tweets, I became enamored with Biebs... oops. DM commands are denoted by '!' prefix. Source/issues: http://git.io/vn4Pd, Slack: noacro"
+    joinMessage = "Hello {}, {} I try to (slowly) \"learn\" English sentence structure through Markov chains. If you don't want me eavesdropping, please kick me. Otherwise, invite me to all your parties so I can learn faster (/invite @markovbot)! DM me to see what I have to say. Caveat lector -- when trained on live tweets, I became enamored with Biebs... oops. DM commands are invoked with '!' prefix. Source/issues: http://git.io/vn4Pd, Slack: noacro"
     outputs.append([channelId, joinMessage.format(channelName, salutation[reason])])
 
 crontable.append([60, "cronNotify"])
@@ -140,26 +140,42 @@ def cronNotify():
 ###
 def process_message(data):
     if 'text' not in data:
-        print "Ignoring non-content message {}".format(data)
+        print "non-content message"
+        #ignore non-messages (edits, etc)
         return
-    if data['user'] == me:
+    if 'is_ephemeral' in data and data['is_ephemeral']:
+        print "ephemeral message"
+        #ignore non-users
+        return
+    if 'user' not in data:
+        loggingOutputs.append("user wasn't in message? {}".format(data))
+        return
+    if 'channel' not in data:
+        loggingOutputs.append("channel wasn't in message? {}".format(data))
+        return
+    if data['user'] in [me, "USLACKBOT"]:
+        print "slackbot message, or ourself"
         # No sense in reacting to our own messages
         return
     print "GotMessage {}".format(data)
     handleMessage(data)
 
 def process_group_joined(data):
+    print "groupjoined"
     channelId = data['channel']['id']
     channelName = data['channel']['name']
+    print "notifying"
+    sleep(1)
     notifyGroup(channelId, channelName, 'join')
+    print "adding cron job"
     addChannelNotifier(channelId, channelName)
     loggingOutputs.append('Invited to {}!'.format(channelName))
 
 def process_group_left(data):
     channelId = data['channel']
     if channelId in notifyTable:
-        loggingOutputs.append('Removed from {} :('.format(notifyTable[channelId]))
         del notifyTable[channelId]
+    loggingOutputs.append('Removed from {} :('.format(channelId))
 
 def catchAll(data):
     if data['type'] != "pong":
