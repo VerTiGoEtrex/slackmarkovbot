@@ -160,18 +160,27 @@ def process_message(data):
     print "GotMessage {}".format(data)
     handleMessage(data)
 
+def process_channel_joined(data):
+    joined(data)
+
 def process_group_joined(data):
-    print "groupjoined"
+    joined(data)
+
+def joined(data):
     channelId = data['channel']['id']
     channelName = data['channel']['name']
-    print "notifying"
     sleep(1)
     notifyGroup(channelId, channelName, 'join')
-    print "adding cron job"
     addChannelNotifier(channelId, channelName)
     loggingOutputs.append('Invited to {}!'.format(channelName))
 
+def process_channel_left(data):
+    left(data)
+
 def process_group_left(data):
+    left(data)
+
+def left(data):
     channelId = data['channel']
     if channelId in notifyTable:
         del notifyTable[channelId]
